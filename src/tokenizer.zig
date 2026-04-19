@@ -234,9 +234,10 @@ pub const Tokenizer = struct {
                     result.loc.start = self.index;
                     continue :state .start;
                 },
+                else => continue :state .invalid,
             },
             .invalid => {
-                std.debug.print();
+                std.debug.print("lexer at invalid state\n", .{});
             },
         }
         result.loc.end = self.index;
