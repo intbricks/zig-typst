@@ -3,39 +3,41 @@ const partInt = std.fmt.parseInt;
 
 const tokenizer = @import("tokenizer.zig");
 
-pub fn main() !void {
+pub fn main(init: std.process.Init) !void {
     var debugAllocator = std.heap.DebugAllocator(.{
         .stack_trace_frames = 16,
     }).init;
     defer _ = debugAllocator.deinit();
 
     const gpa = debugAllocator.allocator();
-    const args = try parseArgs();
-    try run(gpa, args);
+    const args = try parseArgs(init.minimal);
+    try run(gpa, args, init);
 }
 
-pub fn run(allocator: std.mem.Allocator, args: Args) !void {
+pub fn run(allocator: std.mem.Allocator, args: Args, init: std.process.Init) !void {
     const path = args.path;
 
     // compiler
     {
-        const src = try std.fs.cwd().readFileAllocOptions(
-            allocator,
+        const dir = std.Io.Dir.cwd();
+        const buf = try std.Io.Dir.readFileAllocOptions(
+            dir,
+            init.io,
             path,
-            std.math.maxInt(usize),
-            null,
+            allocator,
+            .unlimited,
             std.mem.Alignment.fromByteUnits(8),
-            0,
+            0, // null terminated
         );
-        defer allocator.free(src);
+        defer allocator.free(buf);
 
-        var tok = tokenizer.Tokenizer.init(src);
+        var tok = tokenizer.Tokenizer.init(buf);
 
         if (args.mode == .tokenize) {
             while (tok.next()) |token| {
                 std.debug.print("{}: {s}\n", .{
                     token.tag,
-                    src[token.loc.start..token.loc.end],
+                    buf[token.loc.start..token.loc.end],
                 });
 
                 switch (token.tag) {
@@ -62,9 +64,16 @@ const Mode = enum {
     codegen,
 };
 
-fn parseArgs() !Args {
+fn parseArgs(init: std.process.Init.Minimal) !Args {
     // zig build run -- lex assets/intro.typ
-    var args = std.process.args();
+    // var args = init.args.iterate();
+    // _ = args.skip();
+
+    var buffer: [2000]u8 = undefined;
+    var fba: std.heap.FixedBufferAllocator = .init(&buffer);
+    const allocator = fba.allocator();
+    var args = try init.args.iterateAllocator(allocator);
+    defer args.deinit();
     _ = args.skip();
 
     var path: []const u8 = "";

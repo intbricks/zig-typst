@@ -190,7 +190,7 @@ pub const Tokenizer = struct {
     index: usize,
 
     pub fn dump(self: *Tokenizer, token: *const Token) void {
-        std.debug.print("{s} \"{s}\"\n", .{ @tagName(token.tag), self.buffer[token.loc.start..token.loc.end] });
+        std.debug.print("[info]: {s} \"{s}\"\n", .{ @tagName(token.tag), self.buffer[token.loc.start..token.loc.end] });
     }
 
     pub fn init(buffer: [:0]const u8) Tokenizer {
@@ -237,7 +237,7 @@ pub const Tokenizer = struct {
                 else => continue :state .invalid,
             },
             .invalid => {
-                std.debug.print("lexer at invalid state\n", .{});
+                std.debug.print("[error]: lexer at invalid state\n", .{});
             },
         }
         result.loc.end = self.index;
