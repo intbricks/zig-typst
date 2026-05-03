@@ -325,6 +325,13 @@ pub const Token = struct {
             .destruct_assignment => "destructuring assignment",
         };
     }
+
+    pub fn symbol(tag: Tag) []const u8 {
+        return tag.lexme() orelse switch (tag) {
+            .invalid => "invalid token",
+            else => unreachable,
+        };
+    }
 };
 
 pub const Tokenizer = struct {
@@ -346,6 +353,7 @@ pub const Tokenizer = struct {
     pub const State = enum {
         start,
         invalid,
+        identifier,
     };
 
     pub fn next(self: *Tokenizer) ?Token {
@@ -376,10 +384,36 @@ pub const Tokenizer = struct {
                     result.loc.start = self.index;
                     continue :state .start;
                 },
+                'a'...'z', 'A'...'Z', '_' => {
+                    result.tag = .identifier;
+                    continue :state .identifier;
+                },
                 else => continue :state .invalid,
             },
             .invalid => {
-                std.debug.print("[error]: lexer at invalid state\n", .{});
+                self.index += 1;
+                switch (self.buffer[self.index]) {
+                    0 => if (self.index == self.buffer.len) {
+                        result.tag = .invalid;
+                    } else {
+                        continue :state .invalid;
+                    },
+                    '\n' => result.tag = .invalid,
+                    '_' => continue :state .identifier,
+                    else => continue :state .invalid,
+                }
+            },
+            .identifier => {
+                self.index += 1;
+                switch (self.buffer[self.index]) {
+                    'a'...'z', 'A'...'Z', '0'...'9', '-', '_' => continue :state .identifier,
+                    else => {
+                        const ident = self.buffer[result.loc.start..self.index];
+                        if (Token.getKeyword(ident)) |tag| {
+                            result.tag = tag;
+                        }
+                    },
+                }
             },
         }
         result.loc.end = self.index;
