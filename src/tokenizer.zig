@@ -14,6 +14,28 @@ pub const Token = struct {
         end: usize,
     };
 
+    pub const keywords = std.StaticStringMap(Tag).initComptime(.{
+        .{ "let", .keyword_let },
+        .{ "set", .keyword_set },
+        .{ "show", .keyword_show },
+        .{ "context", .keyword_context },
+        .{ "if", .keyword_if },
+        .{ "else", .keyword_else },
+        .{ "for", .keyword_for },
+        .{ "in", .keyword_in },
+        .{ "while", .keyword_while },
+        .{ "break", .keyword_break },
+        .{ "continue", .keyword_continue },
+        .{ "return", .keyword_return },
+        .{ "import", .keyword_import },
+        .{ "include", .keyword_include },
+        .{ "as", .keyword_as },
+    });
+
+    pub fn getKeyword(bytes: []const u8) ?Tag {
+        return keywords.get(bytes);
+    }
+
     pub const Tag = enum {
         invalid,
         eof,
