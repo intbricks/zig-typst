@@ -343,7 +343,7 @@ pub const Tokenizer = struct {
     }
 
     pub fn init(buffer: [:0]const u8) Tokenizer {
-        // skip the UTF-8 BOF if present.
+        // skip the UTF-8 BOM if present.
         return .{
             .buffer = buffer,
             .index = if (std.mem.startsWith(u8, buffer, "\xEF\xBB\xBF")) 3 else 0,
@@ -356,7 +356,7 @@ pub const Tokenizer = struct {
         identifier,
     };
 
-    pub fn next(self: *Tokenizer) ?Token {
+    pub fn next(self: *Tokenizer) Token {
         var result: Token = .{
             .tag = undefined,
             .loc = .{
@@ -387,6 +387,10 @@ pub const Tokenizer = struct {
                 'a'...'z', 'A'...'Z', '_' => {
                     result.tag = .identifier;
                     continue :state .identifier;
+                },
+                ';' => {
+                    result.tag = .semicolon;
+                    self.index += 1;
                 },
                 else => continue :state .invalid,
             },
@@ -420,3 +424,25 @@ pub const Tokenizer = struct {
         return result;
     }
 };
+
+test "keywords" {
+    try testTokenize("let set while", &.{ .keyword_let, .keyword_set, .keyword_while });
+}
+
+test "utf-8 BOM is identified and skipped" {
+    try testTokenize("\xEF\xBB\xBFa;\n", &.{ .identifier, .semicolon });
+}
+
+fn testTokenize(source: [:0]const u8, expected_tags: []const Token.Tag) !void {
+    var tokenizer = Tokenizer.init(source);
+    for (expected_tags) |expected_tag| {
+        const token = tokenizer.next();
+        try std.testing.expectEqual(expected_tag, token.tag);
+    }
+
+    // last token is always eof
+    const last_token = tokenizer.next();
+    try std.testing.expectEqual(Token.Tag.eof, last_token.tag);
+    try std.testing.expectEqual(source.len, last_token.loc.start);
+    try std.testing.expectEqual(source.len, last_token.loc.end);
+}
